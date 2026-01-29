@@ -6,7 +6,17 @@ const reviewSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
       required: [true, 'Product ID is required'],
+      index: true
     },
+
+    author: {
+      type: String,
+      trim: true,
+      minlength: [2, 'Author must be at least 2 characters'],
+      maxlength: [60, 'Author cannot exceed 60 characters'],
+      default: 'Anonymous'
+    },
+
     rating: {
       type: Number,
       required: [true, 'Rating is required'],
@@ -14,31 +24,33 @@ const reviewSchema = new mongoose.Schema(
       max: [5, 'Rating cannot exceed 5'],
       validate: {
         validator: Number.isInteger,
-        message: 'Rating must be an integer between 1 and 5',
-      },
+        message: 'Rating must be an integer between 1 and 5'
+      }
     },
+
     comment: {
       type: String,
       required: [true, 'Comment is required'],
       minlength: [5, 'Comment must be at least 5 characters long'],
       maxlength: [1000, 'Comment cannot exceed 1000 characters'],
-      trim: true,
+      trim: true
     },
+
     recommended: {
       type: Boolean,
-      default: true,
+      default: true
     },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'User is required'], // ✅ обязательно
-    },
+      required: [true, 'User ID is required'],
+      index: true
+    }
   },
   { timestamps: true }
 );
 
-reviewSchema.index({ productId: 1 });
-reviewSchema.index({ rating: -1 });
-reviewSchema.index({ createdBy: 1 });
+reviewSchema.index({ productId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Review', reviewSchema);
