@@ -8,7 +8,7 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 // Import routes
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
-const reviewRoutes = require('./routes/reviews');
+const reviewRoutes = require('./routes/reviews'); // ✅ ADD THIS
 
 // Initialize Express app
 const app = express();
@@ -43,7 +43,7 @@ if (process.env.NODE_ENV === 'development') {
 // API routes - BEFORE static files
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api', reviewRoutes);
+app.use('/api', reviewRoutes); // ✅ ADD THIS (important)
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -85,13 +85,14 @@ app.listen(PORT, () => {
   console.log('  GET    /api/auth/me');
   console.log('  GET    /api/products');
   console.log('  POST   /api/products (admin)');
+  console.log('  GET    /api/products/:productId/reviews');
+  console.log('  POST   /api/products/:productId/reviews (auth)');
   console.log('=================================');
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Rejection:', err.message);
-  // Close server & exit
   process.exit(1);
 });
 
