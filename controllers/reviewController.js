@@ -20,20 +20,27 @@ exports.createReview = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Product not found' });
   }
 
-  // Берём userId правильно (id или _id)
+  // Get user ID from req.user set by authenticate middleware
   const userId = req.user?.id || req.user?._id;
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Unauthorized: user not found in token' });
   }
 
-  // Берём только нужные поля, чтобы юзер не мог подделать createdBy/productId
-  const { rating, comment } = req.body;
+  // We will give you the right field from the front
+  const { rating, comment, author, recommended } = req.body;
+
+  // Mini-validation
+  if (!rating || !comment) {
+    return res.status(400).json({ success: false, message: 'rating and comment are required' });
+  }
 
   const review = await Review.create({
     productId,
     createdBy: userId,
     rating,
-    comment
+    comment,
+    author: author?.trim() || req.user?.name || 'Anonymous',
+    recommended: typeof recommended === 'boolean' ? recommended : true
   });
 
   res.status(201).json({
@@ -42,6 +49,7 @@ exports.createReview = asyncHandler(async (req, res) => {
     data: review
   });
 });
+
 
 // @desc    Get all reviews for product
 // @route   GET /api/products/:productId/reviews
