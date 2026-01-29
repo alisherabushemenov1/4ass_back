@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const { asyncHandler } = require('../middleware/errorHandler');
@@ -6,21 +7,34 @@ const { asyncHandler } = require('../middleware/errorHandler');
 // @route   POST /api/products/:productId/reviews
 // @access  Private
 exports.createReview = asyncHandler(async (req, res) => {
-  // Check if product exists
-  const product = await Product.findById(req.params.productId);
+  const { productId } = req.params;
 
-  if (!product) {
-    return res.status(404).json({
-      success: false,
-      message: 'Product not found'
-    });
+  // check productId format
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    return res.status(400).json({ success: false, message: 'Invalid productId' });
   }
 
-  // Add product ID and user who created review
-  req.body.productId = req.params.productId;
-  req.body.createdBy = req.user._id;
+  // Check if product exists
+  const product = await Product.findById(productId);
+  if (!product) {
+    return res.status(404).json({ success: false, message: 'Product not found' });
+  }
 
-  const review = await Review.create(req.body);
+  // Берём userId правильно (id или _id)
+  const userId = req.user?.id || req.user?._id;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: user not found in token' });
+  }
+
+  // Берём только нужные поля, чтобы юзер не мог подделать createdBy/productId
+  const { rating, comment } = req.body;
+
+  const review = await Review.create({
+    productId,
+    createdBy: userId,
+    rating,
+    comment
+  });
 
   res.status(201).json({
     success: true,
@@ -33,14 +47,20 @@ exports.createReview = asyncHandler(async (req, res) => {
 // @route   GET /api/products/:productId/reviews
 // @access  Public
 exports.getProductReviews = asyncHandler(async (req, res) => {
-  const reviews = await Review.find({ productId: req.params.productId })
+  const { productId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    return res.status(400).json({ success: false, message: 'Invalid productId' });
+  }
+
+  const reviews = await Review.find({ productId })
     .sort({ createdAt: -1 })
     .populate('createdBy', 'name email')
     .populate('productId', 'name price');
 
   // Calculate average rating
   const stats = await Review.aggregate([
-    { $match: { productId: require('mongoose').Types.ObjectId(req.params.productId) } },
+    { $match: { productId: new mongoose.Types.ObjectId(productId) } }, // ✅ FIX
     {
       $group: {
         _id: null,
@@ -62,44 +82,39 @@ exports.getProductReviews = asyncHandler(async (req, res) => {
 // @route   GET /api/reviews/:id
 // @access  Public
 exports.getReview = asyncHandler(async (req, res) => {
-  const review = await Review.findById(req.params.id)
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid review id' });
+  }
+
+  const review = await Review.findById(id)
     .populate('productId', 'name price category')
     .populate('createdBy', 'name email');
 
   if (!review) {
-    return res.status(404).json({
-      success: false,
-      message: 'Review not found'
-    });
+    return res.status(404).json({ success: false, message: 'Review not found' });
   }
 
-  res.status(200).json({
-    success: true,
-    data: review
-  });
+  res.status(200).json({ success: true, data: review });
 });
 
 // @desc    Update review
 // @route   PUT /api/reviews/:id
 // @access  Private/Admin
 exports.updateReview = asyncHandler(async (req, res) => {
-  let review = await Review.findById(req.params.id);
+  const { id } = req.params;
 
-  if (!review) {
-    return res.status(404).json({
-      success: false,
-      message: 'Review not found'
-    });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid review id' });
   }
 
-  review = await Review.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    {
-      new: true,
-      runValidators: true
-    }
-  );
+  let review = await Review.findById(id);
+  if (!review) {
+    return res.status(404).json({ success: false, message: 'Review not found' });
+  }
+
+  review = await Review.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
 
   res.status(200).json({
     success: true,
@@ -112,20 +127,21 @@ exports.updateReview = asyncHandler(async (req, res) => {
 // @route   DELETE /api/reviews/:id
 // @access  Private/Admin
 exports.deleteReview = asyncHandler(async (req, res) => {
-  const review = await Review.findById(req.params.id);
+  const { id } = req.params;
 
-  if (!review) {
-    return res.status(404).json({
-      success: false,
-      message: 'Review not found'
-    });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ success: false, message: 'Invalid review id' });
   }
 
-  await Review.findByIdAndDelete(req.params.id);
+  const review = await Review.findById(id);
+  if (!review) {
+    return res.status(404).json({ success: false, message: 'Review not found' });
+  }
+
+  await Review.findByIdAndDelete(id);
 
   res.status(200).json({
     success: true,
-    message: 'Review deleted successfully',
-    data: review
+    message: 'Review deleted successfully'
   });
 });
