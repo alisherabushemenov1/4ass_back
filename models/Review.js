@@ -1,29 +1,44 @@
-const express = require('express');
-const router = express.Router();
-const reviewController = require('../controllers/reviewController');
-const { authenticate, authorize } = require('../middleware/auth');
+const mongoose = require('mongoose');
 
-// Public routes (GET - Read access for everyone)
-router.get('/products/:productId/reviews', reviewController.getProductReviews);
-router.get('/reviews/:id', reviewController.getReview);
-
-// Protected routes (Authenticated users can create reviews)
-router.post('/products/:productId/reviews', 
-  authenticate, 
-  reviewController.createReview
+const reviewSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: [true, 'Product ID is required'],
+    },
+    rating: {
+      type: Number,
+      required: [true, 'Rating is required'],
+      min: [1, 'Rating must be at least 1'],
+      max: [5, 'Rating cannot exceed 5'],
+      validate: {
+        validator: Number.isInteger,
+        message: 'Rating must be an integer between 1 and 5',
+      },
+    },
+    comment: {
+      type: String,
+      required: [true, 'Comment is required'],
+      minlength: [5, 'Comment must be at least 5 characters long'],
+      maxlength: [1000, 'Comment cannot exceed 1000 characters'],
+      trim: true,
+    },
+    recommended: {
+      type: Boolean,
+      default: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'User is required'], // ✅ обязательно
+    },
+  },
+  { timestamps: true }
 );
 
-// Admin only routes (Update and Delete)
-router.put('/reviews/:id', 
-  authenticate, 
-  authorize('admin'), 
-  reviewController.updateReview
-);
+reviewSchema.index({ productId: 1 });
+reviewSchema.index({ rating: -1 });
+reviewSchema.index({ createdBy: 1 });
 
-router.delete('/reviews/:id', 
-  authenticate, 
-  authorize('admin'), 
-  reviewController.deleteReview
-);
-
-module.exports = router;
+module.exports = mongoose.model('Review', reviewSchema);
