@@ -225,6 +225,11 @@
             color: #1976d2;
         }
 
+        .badge-qty {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
         .admin-controls {
             display: none;
             margin-top: 15px;
@@ -276,11 +281,117 @@
             display: block;
         }
 
+        /* Added (quantity layout + reviews modal + stars) */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            width: auto;
+        }
+
+        .btn-review {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 650px;
+            width: 92%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: auto;
+        }
+
+        .close-btn:hover { color: #333; }
+
+        .review-item {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .review-author { font-weight: 700; color: #333; }
+        .review-rating { color: #ffc107; font-size: 1.1rem; }
+        .review-comment { color: #666; line-height: 1.5; margin: 8px 0; }
+        .review-date { font-size: 0.85rem; color: #999; }
+
+        .no-reviews {
+            text-align: center;
+            padding: 24px;
+            color: #999;
+        }
+
+        .stars { display: flex; gap: 6px; font-size: 1.5rem; }
+        .star { cursor: pointer; color: #ddd; transition: color 0.2s; }
+        .star.active, .star:hover { color: #ffc107; }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8rem;
             }
             .products-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-row {
                 grid-template-columns: 1fr;
             }
         }
@@ -357,10 +468,19 @@
                     <label>Product Name</label>
                     <input type="text" id="productName">
                 </div>
-                <div class="form-group">
-                    <label>Price</label>
-                    <input type="number" id="productPrice" step="0.01">
+
+                <!-- UPDATED: price + quantity -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Price</label>
+                        <input type="number" id="productPrice" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="productQuantity" min="0" value="0">
+                    </div>
                 </div>
+
                 <div class="form-group">
                     <label>Description</label>
                     <textarea id="productDesc" rows="3"></textarea>
@@ -388,15 +508,70 @@
         </div>
     </div>
 
+    <!-- Reviews Modal (ADDED) -->
+    <div class="modal" id="reviewsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalProductName">Reviews</h2>
+                <button class="close-btn" onclick="closeReviewsModal()">&times;</button>
+            </div>
+
+            <!-- Add Review (only logged in users) -->
+            <div id="addReviewSection" class="hidden"
+                 style="margin-bottom: 18px; padding: 16px; background:#f8f9fa; border-radius: 12px;">
+                <h3 style="margin-bottom: 10px; color:#333;">✍️ Write a Review</h3>
+
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="reviewAuthor" placeholder="John Doe">
+                </div>
+
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div class="stars" id="ratingStars">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Comment</label>
+                    <textarea id="reviewComment" rows="3" placeholder="Share your experience..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="reviewRecommended" checked>
+                        I recommend this product
+                    </label>
+                </div>
+
+                <button class="btn" onclick="submitReview()">Submit Review</button>
+            </div>
+
+            <!-- Reviews list -->
+            <div id="reviewsList">
+                <div class="no-reviews">Loading reviews...</div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = 'http://localhost:3000/api';
         let currentUser = null;
         let authToken = localStorage.getItem('token');
 
+        // Reviews state (ADDED)
+        let currentProductId = null;
+        let selectedRating = 5;
+
         // Test API connection on load
         window.addEventListener('DOMContentLoaded', async () => {
             console.log('🔍 Testing API connection...');
-            
+
             try {
                 const response = await fetch(`${API_URL}/health`);
                 const data = await response.json();
@@ -410,12 +585,15 @@
                 await loadProfile();
             }
             loadProducts();
+
+            // init stars (ADDED)
+            initializeRatingStars();
         });
 
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
-            
+
             if (tab === 'login') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('loginForm').classList.add('active');
@@ -441,6 +619,26 @@
             }
         }
 
+        // Stars (ADDED)
+        function initializeRatingStars() {
+            const stars = document.querySelectorAll('.star');
+            stars.forEach(star => {
+                star.addEventListener('click', function () {
+                    selectedRating = parseInt(this.dataset.rating, 10);
+                    updateStars(selectedRating);
+                });
+            });
+            updateStars(5);
+        }
+
+        function updateStars(rating) {
+            const stars = document.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < rating) star.classList.add('active');
+                else star.classList.remove('active');
+            });
+        }
+
         async function register() {
             const btn = document.getElementById('registerBtn');
             btn.disabled = true;
@@ -458,7 +656,7 @@
             try {
                 const res = await fetch(`${API_URL}/auth/register`, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
@@ -501,7 +699,7 @@
             try {
                 const res = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
@@ -516,7 +714,7 @@
                     authToken = result.data.token;
                     localStorage.setItem('token', authToken);
                     currentUser = result.data.user;
-                    
+
                     console.log('✅ Login successful. User:', currentUser);
                     showAlert('✅ Login successful!', 'success');
                     updateUI();
@@ -562,7 +760,7 @@
                 document.getElementById('authSection').style.display = 'none';
                 document.getElementById('userInfo').classList.add('show');
                 document.getElementById('userName').textContent = `${currentUser.name} (${currentUser.role})`;
-                
+
                 if (currentUser.role === 'admin') {
                     document.getElementById('adminSection').classList.remove('hidden');
                     document.querySelectorAll('.admin-controls').forEach(el => el.classList.add('show'));
@@ -577,11 +775,13 @@
             location.reload();
         }
 
+        // UPDATED: now includes quantity
         async function createProduct() {
             const data = {
-                name: document.getElementById('productName').value,
+                name: document.getElementById('productName').value.trim(),
                 price: parseFloat(document.getElementById('productPrice').value),
-                description: document.getElementById('productDesc').value,
+                quantity: parseInt(document.getElementById('productQuantity').value, 10) || 0,
+                description: document.getElementById('productDesc').value.trim(),
                 category: document.getElementById('productCategory').value
             };
 
@@ -605,6 +805,7 @@
                     loadProducts();
                     document.getElementById('productName').value = '';
                     document.getElementById('productPrice').value = '';
+                    document.getElementById('productQuantity').value = '0';
                     document.getElementById('productDesc').value = '';
                 } else {
                     showAlert('❌ ' + (result.message || 'Failed to create product'), 'error');
@@ -615,6 +816,7 @@
             }
         }
 
+        // UPDATED: shows quantity + Reviews button
         async function loadProducts() {
             try {
                 const res = await fetch(`${API_URL}/products`);
@@ -627,11 +829,20 @@
                     container.innerHTML = `<div class="products-grid">${result.data.map(p => `
                         <div class="product-card">
                             <div class="product-name">${p.name}</div>
-                            <div class="product-price">$${p.price.toFixed(2)}</div>
+                            <div class="product-price">$${Number(p.price).toFixed(2)}</div>
                             <p>${p.description}</p>
                             <div>
                                 <span class="badge badge-category">${p.category}</span>
+                                <span class="badge badge-qty">Qty: ${p.quantity ?? 0}</span>
                             </div>
+
+                            <div class="product-actions">
+                                <button class="btn btn-small btn-review"
+                                    onclick="openReviewsModal('${p._id}', '${String(p.name).replace(/'/g, "\\'")}')">
+                                    ⭐ Reviews
+                                </button>
+                            </div>
+
                             <div class="admin-controls">
                                 <button class="btn btn-delete" onclick="deleteProduct('${p._id}')">🗑️ Delete</button>
                             </div>
@@ -672,6 +883,125 @@
                 showAlert('❌ Delete failed', 'error');
             }
         }
+
+        // Reviews (ADDED)
+        async function openReviewsModal(productId, productName) {
+            currentProductId = productId;
+            document.getElementById('modalProductName').textContent = `Reviews - ${productName}`;
+            document.getElementById('reviewsModal').classList.add('show');
+
+            if (currentUser) {
+                document.getElementById('addReviewSection').classList.remove('hidden');
+                document.getElementById('reviewAuthor').value = currentUser.name || '';
+            } else {
+                document.getElementById('addReviewSection').classList.add('hidden');
+            }
+
+            selectedRating = 5;
+            updateStars(5);
+
+            await loadReviews(productId);
+        }
+
+        function closeReviewsModal() {
+            document.getElementById('reviewsModal').classList.remove('show');
+            currentProductId = null;
+
+            document.getElementById('reviewAuthor').value = '';
+            document.getElementById('reviewComment').value = '';
+            document.getElementById('reviewRecommended').checked = true;
+
+            selectedRating = 5;
+            updateStars(5);
+        }
+
+        async function loadReviews(productId) {
+            const container = document.getElementById('reviewsList');
+            container.innerHTML = '<div class="no-reviews">Loading reviews...</div>';
+
+            try {
+                const res = await fetch(`${API_URL}/products/${productId}/reviews`);
+                const result = await res.json();
+
+                if (result.success && result.data && result.data.length > 0) {
+                    container.innerHTML = result.data.map(r => `
+                        <div class="review-item">
+                            <div class="review-header">
+                                <span class="review-author">👤 ${r.author}</span>
+                                <span class="review-rating">${'⭐'.repeat(r.rating)}</span>
+                            </div>
+
+                            <div class="review-comment">${r.comment}</div>
+
+                            ${r.recommended
+                                ? '<span style="color:#2e7d32; font-size:0.9rem;">✅ Recommended</span>'
+                                : ''
+                            }
+
+                            <div class="review-date">📅 ${new Date(r.createdAt).toLocaleDateString()}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="no-reviews">No reviews yet. Be the first to review!</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="no-reviews" style="color:#e74c3c;">Error loading reviews</div>';
+            }
+        }
+
+        async function submitReview() {
+            if (!currentUser) {
+                showAlert('❌ Please login to write a review', 'error');
+                return;
+            }
+
+            const data = {
+                author: document.getElementById('reviewAuthor').value.trim(),
+                rating: selectedRating,
+                comment: document.getElementById('reviewComment').value.trim(),
+                recommended: document.getElementById('reviewRecommended').checked
+            };
+
+            if (!data.author || !data.comment) {
+                showAlert('❌ Please fill all fields', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/products/${currentProductId}/reviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showAlert('✅ Review submitted!', 'success');
+
+                    document.getElementById('reviewComment').value = '';
+                    document.getElementById('reviewRecommended').checked = true;
+
+                    selectedRating = 5;
+                    updateStars(5);
+
+                    await loadReviews(currentProductId);
+                } else {
+                    showAlert('❌ ' + (result.message || 'Failed to submit review'), 'error');
+                }
+            } catch (error) {
+                showAlert('❌ Network error', 'error');
+            }
+        }
+
+        // Close modal when clicking outside (nice UX)
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('reviewsModal');
+            if (e.target === modal) closeReviewsModal();
+        });
     </script>
 </body>
 </html>
